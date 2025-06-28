@@ -4,31 +4,78 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>3D Cube Builder</title>
+    <!-- Google Material Symbols Link -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; height: 100vh; background-color: #f0f0f0; }
+        /* Material Design 3 inspired color variables */
+        :root {
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+
+            --md-sys-color-secondary: #625B71;
+            --md-sys-color-on-secondary: #FFFFFF;
+            --md-sys-color-secondary-container: #E8DEF8;
+            --md-sys-color-on-secondary-container: #1D192B;
+
+            --md-sys-color-tertiary: #7D5260;
+            --md-sys-color-on-tertiary: #FFFFFF;
+            --md-sys-color-tertiary-container: #FFD8E4;
+            --md-sys-color-on-tertiary-container: #31111D;
+
+            --md-sys-color-error: #B3261E;
+            --md-sys-color-on-error: #FFFFFF;
+            --md-sys-color-error-container: #F9DEDC;
+            --md-sys-color-on-error-container: #410E0B;
+
+            --md-sys-color-background: #FFFBFE;
+            --md-sys-color-on-background: #1C1B1F;
+            --md-sys-color-surface: #FFFBFE;
+            --md-sys-color-on-surface: #1C1B1F;
+            --md-sys-color-surface-variant: #E7E0EC;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-outline: #79747E;
+
+            --md-sys-color-add-mode: #4CAF50; /* Green for add */
+            --md-sys-color-remove-mode: #f44336; /* Red for remove */
+            --md-sys-color-utility: #607d8b; /* Greyish blue for utility */
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: var(--md-sys-color-background);
+            color: var(--md-sys-color-on-background);
+        }
+
         #info {
             position: absolute;
             top: 10px;
             left: 50%;
             transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.7);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 0.9em;
+            background: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface-variant);
+            padding: 12px 20px;
+            border-radius: 12px; /* More rounded */
+            font-size: 0.95em;
             z-index: 10;
             text-align: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08); /* Softer shadow */
             transition: opacity 0.3s ease-in-out;
         }
-        /* Updated hidden class to use display: none; */
         #info.hidden {
             opacity: 0;
             pointer-events: none;
-            display: none; /* Hide element completely */
+            display: none;
         }
+
         #controls {
             position: absolute;
             bottom: 20px;
@@ -38,48 +85,68 @@
             gap: 15px;
             z-index: 10;
         }
+
         button {
-            padding: 12px 25px;
-            font-size: 1.1em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* Space between icon and text */
+            padding: 12px 20px;
+            font-size: 1.05em;
             cursor: pointer;
             border: none;
-            border-radius: 10px;
-            background-color: #4CAF50;
-            color: white;
-            box-shadow: 0 5px #388E3C;
-            transition: all 0.2s ease;
+            border-radius: 20px; /* MD3 rounded corners */
+            color: var(--md-sys-color-on-primary);
+            background-color: var(--md-sys-color-primary); /* Default primary button */
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.16), 0 3px 6px rgba(0, 0, 0, 0.23); /* Elevated button shadow */
+            transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1); /* MD3 motion */
         }
         button:hover {
-            background-color: #45a049;
-            box-shadow: 0 3px #388E3C;
-            transform: translateY(2px);
+            background-color: color-mix(in srgb, var(--md-sys-color-primary) 85%, black); /* Darken slightly on hover */
+            box-shadow: 0 5px 10px rgba(0, 0, 0, 0.2), 0 6px 12px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
         }
         button:active {
-            box-shadow: 0 0 #388E3C;
-            transform: translateY(5px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            transform: translateY(1px);
         }
-        button.remove {
-            background-color: #f44336;
-            box-shadow: 0 5px #d32f2f;
+
+        /* Specific button colors */
+        button#addModeBtn {
+            background-color: var(--md-sys-color-add-mode);
         }
-        button.remove:hover {
-            background-color: #da332a;
-            box-shadow: 0 3px #d32f2f;
+        button#addModeBtn:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-add-mode) 85%, black);
         }
-        button.remove:active {
-            box-shadow: 0 0 #d32f2f;
+        button#removeModeBtn {
+            background-color: var(--md-sys-color-remove-mode);
         }
-        button.toggle-info, button.annotate-btn {
-            background-color: #607d8b;
-            box-shadow: 0 5px #455a64;
+        button#removeModeBtn:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-remove-mode) 85%, black);
         }
-        button.toggle-info:hover, button.annotate-btn:hover {
-            background-color: #546e7a;
-            box-shadow: 0 3px #455a64;
+        button.annotate-btn, button.toggle-info {
+            background-color: var(--md-sys-color-utility);
         }
-        button.toggle-info:active, button.annotate-btn:active {
-            box-shadow: 0 0 #455a64;
+        button.annotate-btn:hover, button.toggle-info:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-utility) 85%, black);
         }
+
+        /* Active mode styling */
+        button.active {
+            outline: 3px solid var(--md-sys-color-primary-container); /* MD3 focus ring style */
+            outline-offset: 3px;
+            box-shadow: 0 0 0 6px var(--md-sys-color-primary-container); /* Add a subtle glow for active */
+            transform: translateY(0); /* Ensure no lift when active */
+        }
+        button#addModeBtn.active {
+             outline-color: var(--md-sys-color-add-mode);
+             box-shadow: 0 0 0 3px var(--md-sys-color-add-mode), 0 3px 6px rgba(0,0,0,0.16);
+        }
+        button#removeModeBtn.active {
+             outline-color: var(--md-sys-color-remove-mode);
+             box-shadow: 0 0 0 3px var(--md-sys-color-remove-mode), 0 3px 6px rgba(0,0,0,0.16);
+        }
+
 
         canvas {
             display: block;
@@ -96,78 +163,282 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.85);
-            display: flex; /* Kept flex, but managed by JS for hidden state */
+            display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: center; /* Centered canvas vertically */
             align-items: center;
             z-index: 9999;
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
+            position: relative; /* Set as positioning context for absolute children */
         }
-        /* Updated hidden class for annotation overlay */
         #annotationOverlay.hidden {
-            display: none; /* Hide element completely */
+            display: none;
+        }
+        #canvasContainer {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: var(--md-sys-color-surface-variant); /* Fallback if screenshot doesn't load */
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 12px; /* MD3 rounded corners for container */
+            overflow: auto; /* Allow scrolling if image is larger than viewport */
+            min-width: 100px;
+            min-height: 100px;
+            margin-top: auto; /* Pushes canvas down to make space for tools if needed */
+            margin-bottom: auto; /* Pushes canvas up to make space for tools if needed */
+        }
+        #screenshotCanvas, #drawingCanvas {
+            border: 2px solid var(--md-sys-color-outline); /* Subtle border */
+            display: block;
+            /* Width and Height will be set explicitly in JS to img.naturalWidth/Height */
         }
         #drawingCanvas {
-            border: 2px solid white;
+            position: absolute;
+            top: 0;
+            left: 0;
             cursor: crosshair;
-            background-color: #333;
-            max-width: 90vw; /* These max-width/height are crucial for responsiveness */
-            max-height: 80vh;
-            width: auto; /* Allow CSS to size it based on max-width/height */
-            height: auto;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            border-radius: 10px;
+            background-color: transparent;
         }
         #annotationTools {
+            position: absolute; /* Position absolutely to float above content */
+            bottom: 20px; /* Distance from bottom of the overlay */
+            left: 50%;
+            transform: translateX(-50%); /* Center horizontally */
+            width: 90%; /* Take up most of the width */
+            max-width: 850px; /* Limit width on larger screens */
             display: flex;
-            gap: 10px;
-            margin-top: 20px;
-            padding: 15px;
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            gap: 8px; /* Adjusted gap */
+            /* Removed background, padding, border-radius, and box-shadow */
+            /* background-color: var(--md-sys-color-surface-variant); */
+            /* padding: 15px; */
+            /* border-radius: 12px; */
+            /* box-shadow: 0 0 15px rgba(0,0,0,0.3); */
+            flex-wrap: nowrap; /* Forces content to stay on one row */
+            justify-content: center;
+            align-items: center; /* Ensure vertical alignment */
+            z-index: 10000; /* Ensure it's above everything else */
+            overflow-x: auto; /* Allow horizontal scrolling if content overflows */
+        }
+        #annotationTools button {
+            padding: 8px 12px; /* Adjusted padding */
+            font-size: 0.85em; /* Adjusted font size */
+            border-radius: 16px; /* Smaller rounded corners for tool buttons */
+            background-color: var(--md-sys-color-secondary); /* Secondary color for annotation tools */
+            color: var(--md-sys-color-on-secondary);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+        }
+        #annotationTools button:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-secondary) 85%, black);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+        #annotationTools button:active {
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            transform: translateY(1px);
+        }
+
+        /* Active tool button style within annotation tools */
+        #annotationTools button.active-tool {
+            background-color: var(--md-sys-color-primary); /* Primary color for active tool */
+            outline: none; /* Remove default outline */
+        }
+        #annotationTools button.active-tool:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-primary) 85%, black);
+        }
+
+        /* Main Color Picker Circle */
+        #mainColorPickerCircle {
+            width: 38px; /* Slightly larger for main button */
+            height: 38px;
+            border-radius: 50%;
+            border: 3px solid var(--md-sys-color-outline);
+            cursor: pointer;
+            transition: border-color 0.2s ease; /* Removed transform from transition */
+            flex-shrink: 0;
+            background-color: black; /* Initial color */
+            display: flex; /* Added for centering icon */
+            align-items: center; /* Added for centering icon */
+            justify-content: center; /* Added for centering icon */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Original shadow */
+        }
+        #mainColorPickerCircle:hover {
+            /* Removed transform: scale(1.15); */
+            transform: none; /* Explicitly ensure no transform on hover */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Original hover shadow */
+        }
+        #mainColorPickerCircle .material-symbols-outlined {
+            color: var(--md-sys-color-on-tertiary); /* Color for the icon */
+            font-size: 1.5em; /* Make the icon slightly larger */
+        }
+
+        /* Individual color pickers within the new panel */
+        .color-picker {
+            width: 32px; /* Adjusted size */
+            height: 32px; /* Adjusted size */
+            border-radius: 50%;
+            border: 3px solid var(--md-sys-color-outline); /* Thicker border */
+            cursor: pointer;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+            flex-shrink: 0; /* Prevent from shrinking */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1); /* Original shadow */
+        }
+        .color-picker:hover {
+            transform: none; /* Removed scaling on hover */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15); /* Original hover shadow */
+        }
+        .color-picker.active-color {
+            border-color: var(--md-sys-color-primary); /* Use primary color for active */
+            transform: none; /* Removed scaling on active */
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2); /* Original active shadow */
+        }
+
+        /* Style for Material Symbols icon */
+        .material-symbols-outlined {
+          font-variation-settings:
+          'FILL' 0,
+          'wght' 400,
+          'GRAD' 0,
+          'opsz' 24;
+          font-size: 1em; /* Adjusted to scale with parent font size */
+        }
+        button .material-symbols-outlined {
+            color: inherit; /* Ensure icon inherits button's text color */
+        }
+
+        /* Styles for the new slider */
+        #brushSizeControlGroup { /* New container for slider and display */
+            display: flex;
+            align-items: center;
+            gap: 4px; /* Reduced gap to bring text closer */
+            margin: 0 5px; /* Add some horizontal margin to the group */
+            color: var(--md-sys-color-on-surface); /* Ensure text color is visible */
+            font-size: 0.8em; /* Adjusted font size for slider labels */
+            font-weight: 400; /* Normal weight for labels */
+            flex-shrink: 0; /* Prevent from shrinking */
+        }
+        #brushSizeControlGroup span {
+            white-space: nowrap; /* Prevent text from wrapping */
+        }
+
+        #brushSizeSlider {
+            -webkit-appearance: none; /* Override default look */
+            width: 120px; /* Adjusted width for the slider */
+            height: 8px; /* Thickness of the slider track */
+            background: var(--md-sys-color-secondary-container); /* Track color */
+            border-radius: 4px;
+            outline: none;
+            transition: background 0.2s;
+        }
+
+        /* Slider thumb */
+        #brushSizeSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px; /* Adjusted size of the thumb */
+            height: 20px; /* Adjusted size of the thumb */
+            background: var(--md-sys-color-primary); /* Thumb color */
+            border-radius: 50%; /* Circular thumb */
+            cursor: grab;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s, box-shadow 0.2s;
+            margin-top: -6px; /* Center thumb vertically on track */
+        }
+
+        #brushSizeSlider::-webkit-slider-thumb:hover {
+            background: color-mix(in srgb, var(--md-sys-color-primary) 85%, black);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        #brushSizeSlider::-webkit-slider-thumb:active {
+            cursor: grabbing;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        #brushSizeSlider::-moz-range-thumb {
+            width: 20px; /* Adjusted size of the thumb */
+            height: 20px; /* Adjusted size of the thumb */
+            background: var(--md-sys-color-primary);
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+
+        #brushSizeSlider::-moz-range-thumb:hover {
+            background: color-mix(in srgb, var(--md-sys-color-primary) 85%, black);
+            box-shadow: 0 44px 8px rgba(0, 0, 0, 0.25);
+        }
+        #brushSizeSlider::-moz-range-thumb:active {
+            cursor: grabbing;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        /* New Color/Size Selection Panel */
+        #colorSizeSelectionPanel {
+            position: absolute;
+            /* Positioning will be handled by JS */
+            background-color: var(--md-sys-color-surface);
+            padding: 15px; /* Slightly reduced padding */
+            border-radius: 16px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.25); /* Added shadow to panel */
+            z-index: 10001; /* Above annotationTools */
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* Slightly reduced gap */
+            align-items: center;
+            flex-wrap: wrap; /* Allow wrapping within the panel */
+            max-width: 90vw; /* Responsive width */
+            max-height: 90vh; /* Responsive height */
+            overflow-y: auto; /* Scroll if content overflows */
+        }
+        #colorSizeSelectionPanel.hidden {
+            display: none;
+        }
+        #colorSelectionGroup {
+            display: flex;
+            gap: 8px; /* Adjusted gap */
             flex-wrap: wrap;
             justify-content: center;
         }
-        #annotationTools button {
-            padding: 10px 20px;
-            font-size: 1em;
-            background-color: #3f51b5;
-            box-shadow: 0 3px #303f9f;
+        #colorSizeSelectionPanel .panel-button { /* General style for buttons within the panel */
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            padding: 8px 12px; /* Adjusted padding */
+            border-radius: 16px; /* Match other small buttons */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            font-size: 0.85em; /* Match other small buttons */
+            display: flex; /* To center icon */
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
         }
-        #annotationTools button:hover {
-            background-color: #303f9f;
-            box-shadow: 0 1px #303f9f;
-            transform: translateY(2px);
+        #colorSizeSelectionPanel .panel-button:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-primary) 85%, black);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
         }
-        #annotationTools button:active {
-            box-shadow: 0 0 #303f9f;
-            transform: translateY(5px);
+        #colorSizeSelectionPanel .panel-button.active-tool {
+            outline: 2px solid var(--md-sys-color-on-surface); /* More subtle active state for tool buttons in panel */
+            outline-offset: 2px;
         }
-        .color-picker {
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            border: 2px solid #fff;
-            cursor: pointer;
-            transition: transform 0.2s;
+        #eraserToolBtn { /* Specific styling for eraser button in panel */
+            background-color: var(--md-sys-color-tertiary); /* Different color for eraser to distinguish */
+            color: var(--md-sys-color-on-tertiary);
+            padding: 8px 12px; /* Match other panel buttons */
+            font-size: 0.85em;
+            border-radius: 16px;
         }
-        .color-picker:hover {
-            transform: scale(1.1);
+        #eraserToolBtn:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-tertiary) 85%, black);
         }
-        .color-picker.active-color {
-            border-color: yellow;
-            transform: scale(1.2);
+        #eraserToolBtn.active-tool {
+            background-color: var(--md-sys-color-error); /* Red when active to signify delete */
         }
-        #brushSizeDisplay {
-            color: white;
-            font-size: 1.1em;
-            align-self: center;
-            padding: 0 10px;
-            min-width: 50px;
-            text-align: center;
+        #eraserToolBtn.active-tool:hover {
+            background-color: color-mix(in srgb, var(--md-sys-color-error) 85%, black);
         }
+
     </style>
 </head>
 <body>
@@ -186,23 +457,63 @@
 
     <!-- Annotation Overlay -->
     <div id="annotationOverlay" class="hidden">
-        <canvas id="drawingCanvas"></canvas>
+        <div id="canvasContainer">
+            <canvas id="screenshotCanvas"></canvas>
+            <canvas id="drawingCanvas"></canvas>
+        </div>
+        <!-- Annotation Tools are now placed ABSOLUTELY and on top -->
         <div id="annotationTools">
-            <!-- Color Pickers -->
-            <div class="color-picker" style="background-color: red;" data-color="red"></div>
-            <div class="color-picker" style="background-color: green;" data-color="green"></div>
-            <div class="color-picker" style="background-color: blue;" data-color="blue"></div>
-            <div class="color-picker active-color" style="background-color: black;" data-color="black"></div>
+            <!-- Main Color Picker Circle -->
+            <div id="mainColorPickerCircle" class="color-picker"></div>
 
-            <!-- Brush Size Controls -->
-            <button id="brushSmallerBtn">- Size</button>
-            <span id="brushSizeDisplay">5</span>
-            <button id="brushLargerBtn">+ Size</button>
+            <!-- Undo/Redo Buttons -->
+            <button id="undoAnnotationBtn">
+                <span class="material-symbols-outlined">undo</span>
+                Undo
+            </button>
+            <button id="redoAnnotationBtn">
+                <span class="material-symbols-outlined">redo</span>
+                Redo
+            </button>
 
             <!-- Action Buttons -->
-            <button id="clearAnnotationBtn">Clear</button>
-            <button id="saveAnnotationBtn">Save Annotation</button>
-            <button id="closeAnnotationBtn">Close</button>
+            <button id="clearAnnotationBtn">
+                <span class="material-symbols-outlined">delete</span>
+                Clear
+            </button>
+            <button id="saveAnnotationBtn">
+                <span class="material-symbols-outlined">save</span>
+                Save Annotation
+            </button>
+            <button id="closeAnnotationBtn">
+                <span class="material-symbols-outlined">close</span>
+                Close
+            </button>
+        </div>
+
+        <!-- New Color and Size Selection Panel (Hidden by default) -->
+        <div id="colorSizeSelectionPanel" class="hidden">
+            <div id="colorSelectionGroup">
+                <div class="color-picker" style="background-color: red;" data-color="red"></div>
+                <div class="color-picker" style="background-color: green;" data-color="green"></div>
+                <div class="color-picker" style="background-color: blue;" data-color="blue"></div>
+                <div class="color-picker" style="background-color: black;" data-color="black"></div>
+                <!-- Add more colors as needed -->
+            </div>
+
+            <!-- Brush Size Controls (Slider) -->
+            <div id="brushSizeControlGroup">
+                <span>Min (1)</span>
+                <input type="range" id="brushSizeSlider" min="1" max="30" value="5" step="1">
+                <span>Max (30)</span>
+            </div>
+
+            <!-- Eraser Button - now inside the panel and icon-only -->
+            <button id="eraserToolBtn" class="panel-button">
+                <span class="material-symbols-outlined">auto_fix_normal</span>
+            </button>
+
+            <!-- Close button removed as per request, auto-close handles dismissal -->
         </div>
     </div>
 
@@ -228,12 +539,19 @@
         let lastClickPosition = new THREE.Vector3(Infinity, Infinity, Infinity);
 
         // Annotation variables
+        let screenshotCanvas, screenshotCtx;
         let drawingCanvas, drawingCtx;
         let isDrawing = false;
         let lastX = 0;
         let lastY = 0;
         let currentColor = 'black';
         let brushSize = 5;
+        let activeTool = 'color'; // 'color' or 'eraser'
+
+        // History for undo/redo
+        let drawingHistory = [];
+        let redoStack = [];
+        let currentStroke = null;
 
         function init() {
             scene = new THREE.Scene();
@@ -243,7 +561,7 @@
             camera.position.set(5, 5, 5);
             camera.lookAt(0, 0, 0);
 
-            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
@@ -558,32 +876,63 @@
 
         // Annotation Functions
         function setupAnnotationCanvas() {
+            // Get both canvas elements and their contexts
+            screenshotCanvas = document.getElementById('screenshotCanvas');
+            screenshotCtx = screenshotCanvas.getContext('2d', { alpha: true }); // Explicitly request alpha
             drawingCanvas = document.getElementById('drawingCanvas');
-            drawingCtx = drawingCanvas.getContext('2d');
+            drawingCtx = drawingCanvas.getContext('2d', { alpha: true }); // Explicitly request alpha
+
             const annotationOverlay = document.getElementById('annotationOverlay');
+            const canvasContainer = document.getElementById('canvasContainer');
+            const brushSizeSlider = document.getElementById('brushSizeSlider');
+            const mainColorPickerCircle = document.getElementById('mainColorPickerCircle');
+            const colorSizeSelectionPanel = document.getElementById('colorSizeSelectionPanel');
+            const eraserToolBtn = document.getElementById('eraserToolBtn');
+
 
             // IMPORTANT: Render the scene just before capturing the screenshot
             renderer.render(scene, camera);
             const screenshot = renderer.domElement.toDataURL('image/png');
             const img = new Image();
             img.onload = () => {
-                // Set canvas internal resolution to match the screenshot resolution
-                drawingCanvas.width = img.width;
-                drawingCanvas.height = img.height;
+                // Set both canvases internal resolution to match the screenshot resolution
+                screenshotCanvas.width = img.naturalWidth; // Use naturalWidth/Height for direct pixel match
+                screenshotCanvas.height = img.naturalHeight;
+                drawingCanvas.width = img.naturalWidth;
+                drawingCanvas.height = img.naturalHeight;
 
-                // Draw the screenshot onto the canvas
-                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                drawingCtx.drawImage(img, 0, 0, drawingCanvas.width, drawingCanvas.height);
+                // Set canvasContainer's dimensions to maintain original image size
+                // This might make the canvas larger than the viewport, enabling scrolling
+                canvasContainer.style.width = `${img.naturalWidth}px`;
+                canvasContainer.style.height = `${img.naturalHeight}px`;
+
+                // Draw the screenshot onto the screenshotCanvas (background layer)
+                screenshotCtx.clearRect(0, 0, screenshotCanvas.width, screenshotCanvas.height); // Clear any previous content
+                screenshotCtx.drawImage(img, 0, 0);
+
+                // Clear the drawing canvas to ensure it's transparent for new annotations
+                redrawCanvas(); // Redraw initial empty state
+
+                // Set initial active tool to black color and update main color picker
+                setActiveTool('color', 'black');
+                // mainColorPickerCircle.style.backgroundColor = 'black'; // This is now handled by setActiveTool
+                // mainColorPickerCircle.innerHTML = ''; // This is now handled by setActiveTool
+
+                // Initialize slider value
+                brushSizeSlider.value = brushSize; // Set slider to current brushSize
             };
             img.src = screenshot;
 
             // Show the annotation overlay by setting its display style
             annotationOverlay.style.display = 'flex';
             annotationOverlay.classList.remove('hidden');
+            // Hide the color/size selection panel initially
+            colorSizeSelectionPanel.classList.add('hidden');
+
             // Disable OrbitControls while annotating
             controls.enabled = false;
 
-            // Set up drawing event listeners for the 2D canvas
+            // Set up drawing event listeners for the 2D canvas (drawingCanvas)
             drawingCanvas.addEventListener('mousedown', startDrawing);
             drawingCanvas.addEventListener('mousemove', draw);
             drawingCanvas.addEventListener('mouseup', stopDrawing);
@@ -605,14 +954,19 @@
 
 
             // Setup annotation tool buttons
-            document.querySelectorAll('.color-picker').forEach(picker => {
+            mainColorPickerCircle.removeEventListener('click', toggleColorSizePanel);
+            mainColorPickerCircle.addEventListener('click', toggleColorSizePanel);
+            mainColorPickerCircle.addEventListener('mousedown', (e) => e.stopPropagation()); // Prevent global click from closing
+
+            document.querySelectorAll('#colorSizeSelectionPanel .color-picker').forEach(picker => {
                 picker.removeEventListener('click', selectColor);
                 picker.addEventListener('click', selectColor);
             });
-            document.getElementById('brushSmallerBtn').removeEventListener('click', decreaseBrushSize);
-            document.getElementById('brushSmallerBtn').addEventListener('click', decreaseBrushSize);
-            document.getElementById('brushLargerBtn').removeEventListener('click', increaseBrushSize);
-            document.getElementById('brushLargerBtn').addEventListener('click', increaseBrushSize);
+            // Eraser button inside the panel
+            eraserToolBtn.removeEventListener('click', activateEraser);
+            eraserToolBtn.addEventListener('click', activateEraser);
+
+
             document.getElementById('clearAnnotationBtn').removeEventListener('click', clearDrawing);
             document.getElementById('clearAnnotationBtn').addEventListener('click', clearDrawing);
             document.getElementById('saveAnnotationBtn').removeEventListener('click', saveAnnotation);
@@ -620,11 +974,155 @@
             document.getElementById('closeAnnotationBtn').removeEventListener('click', closeAnnotation);
             document.getElementById('closeAnnotationBtn').addEventListener('click', closeAnnotation);
 
-            // Set initial brush size display
-            document.getElementById('brushSizeDisplay').textContent = brushSize;
-            // Set initial active color picker
-            document.querySelector(`.color-picker[data-color="${currentColor}"]`).classList.add('active-color');
+            document.getElementById('undoAnnotationBtn').removeEventListener('click', undoAnnotation);
+            document.getElementById('undoAnnotationBtn').addEventListener('click', undoAnnotation);
+            document.getElementById('redoAnnotationBtn').removeEventListener('click', redoAnnotation);
+            document.getElementById('redoAnnotationBtn').addEventListener('click', redoAnnotation);
+
+
+            // Slider event listener
+            brushSizeSlider.removeEventListener('input', updateBrushSizeFromSlider); // Prevent duplicate listeners
+            brushSizeSlider.addEventListener('input', updateBrushSizeFromSlider);
+
+            // Global click listener for auto-closing the panel
+            document.removeEventListener('mousedown', handleGlobalClick); // Prevent duplicates
+            document.addEventListener('mousedown', handleGlobalClick);
+
+            // Stop propagation for the panel itself to prevent closing when interacting with its elements
+            colorSizeSelectionPanel.addEventListener('mousedown', (e) => e.stopPropagation());
         }
+
+        function handleGlobalClick(event) {
+            const colorSizeSelectionPanel = document.getElementById('colorSizeSelectionPanel');
+            const mainColorPickerCircle = document.getElementById('mainColorPickerCircle');
+
+            // If the panel is visible and the click is outside both the panel and the main color picker
+            if (!colorSizeSelectionPanel.classList.contains('hidden') &&
+                !colorSizeSelectionPanel.contains(event.target) &&
+                !mainColorPickerCircle.contains(event.target)) {
+                closeColorSizePanel();
+            }
+        }
+
+
+        function toggleColorSizePanel(event) {
+            event.stopPropagation(); // Prevent immediate closing by global listener
+            const panel = document.getElementById('colorSizeSelectionPanel');
+            const mainCircle = document.getElementById('mainColorPickerCircle');
+
+            if (panel.classList.contains('hidden')) {
+                // Show the panel
+                panel.classList.remove('hidden');
+
+                // Position the panel above the mainCircle
+                const mainCircleRect = mainCircle.getBoundingClientRect();
+                // Get panel dimensions *after* it's visible, otherwise its rect might be 0
+                const panelRect = panel.getBoundingClientRect();
+
+                // Calculate bottom position: mainCircle's top edge - panel's height - a small margin
+                let bottomPosition = (window.innerHeight - mainCircleRect.top) + 10; // 10px margin from main circle top
+
+                // Calculate left position: center the panel relative to the mainCircle
+                let leftPosition = mainCircleRect.left + (mainCircleRect.width / 2) - (panelRect.width / 2);
+
+                // Ensure panel stays within viewport horizontally
+                if (leftPosition < 10) leftPosition = 10; // 10px from left edge
+                if (leftPosition + panelRect.width > window.innerWidth - 10) {
+                    leftPosition = window.innerWidth - panelRect.width - 10; // 10px from right edge
+                }
+
+                panel.style.bottom = `${bottomPosition}px`;
+                panel.style.left = `${leftPosition}px`;
+
+
+                // Ensure the correct color picker is active when the panel opens
+                document.querySelectorAll('#colorSizeSelectionPanel .color-picker').forEach(picker => {
+                    picker.classList.remove('active-color');
+                    if (picker.dataset.color === currentColor) {
+                        picker.classList.add('active-color');
+                    }
+                });
+
+                // Set initial active state for eraser button when panel opens
+                document.getElementById('eraserToolBtn').classList.remove('active-tool');
+                if (activeTool === 'eraser') {
+                    document.getElementById('eraserToolBtn').classList.add('active-tool');
+                }
+                // No need for 'color' else-if here, setActiveTool handles main color picker's state
+            } else {
+                // Hide the panel
+                panel.classList.add('hidden');
+            }
+        }
+
+        function closeColorSizePanel() {
+            document.getElementById('colorSizeSelectionPanel').classList.add('hidden');
+        }
+
+        function updateBrushSizeFromSlider(event) {
+            brushSize = parseInt(event.target.value);
+        }
+
+        // Function to manage active tool and canvas context properties
+        function setActiveTool(toolType, color = null) {
+            const mainColorPickerCircle = document.getElementById('mainColorPickerCircle');
+            const eraserToolBtn = document.getElementById('eraserToolBtn');
+
+            // Reset all active states in the pop-up panel
+            document.querySelectorAll('#colorSizeSelectionPanel .color-picker').forEach(picker => {
+                picker.classList.remove('active-color');
+            });
+            eraserToolBtn.classList.remove('active-tool'); // Remove active from eraser button in panel
+
+            // Clear previous state of mainColorPickerCircle
+            mainColorPickerCircle.innerHTML = ''; // Remove any existing icon
+            mainColorPickerCircle.style.backgroundColor = ''; // Clear background color
+            mainColorPickerCircle.style.borderColor = 'var(--md-sys-color-outline)'; // Reset border
+
+            if (toolType === 'color') {
+                currentColor = color;
+                const selectedPicker = document.querySelector(`#colorSizeSelectionPanel .color-picker[data-color="${color}"]`);
+                if (selectedPicker) {
+                    selectedPicker.classList.add('active-color');
+                }
+                mainColorPickerCircle.style.backgroundColor = currentColor;
+                activeTool = 'color';
+            } else if (toolType === 'eraser') {
+                eraserToolBtn.classList.add('active-tool');
+                mainColorPickerCircle.innerHTML = '<span class="material-symbols-outlined">auto_fix_normal</span>';
+                mainColorPickerCircle.style.borderColor = 'var(--md-sys-color-tertiary)'; // Change border to match eraser style
+                activeTool = 'eraser';
+            }
+        }
+
+        // Function to redraw all strokes from history
+        function redrawCanvas() {
+            drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            drawingHistory.forEach(stroke => {
+                // To redraw, we need to respect the original drawing parameters
+                drawingCtx.beginPath();
+                drawingCtx.moveTo(stroke.path[0].x, stroke.path[0].y);
+                for (let i = 1; i < stroke.path.length; i++) {
+                    drawingCtx.lineTo(stroke.path[i].x, stroke.path[i].y);
+                }
+                drawingCtx.lineWidth = stroke.brushSize;
+                drawingCtx.lineCap = 'round';
+                drawingCtx.lineJoin = 'round';
+
+                // Handle eraser strokes correctly during redraw
+                if (stroke.isEraser) {
+                    drawingCtx.globalCompositeOperation = 'destination-out';
+                    drawingCtx.strokeStyle = 'rgba(0,0,0,1)'; // Opaque for destination-out
+                } else {
+                    drawingCtx.globalCompositeOperation = 'source-over';
+                    drawingCtx.strokeStyle = stroke.color;
+                }
+                drawingCtx.stroke();
+            });
+             // Reset to default drawing mode after redrawing all history elements
+            drawingCtx.globalCompositeOperation = 'source-over';
+        }
+
 
         function startDrawing(e) {
             isDrawing = true;
@@ -632,6 +1130,15 @@
             // Scale mouse coordinates to canvas internal resolution
             lastX = (e.clientX - rect.left) * (drawingCanvas.width / rect.width);
             lastY = (e.clientY - rect.top) * (drawingCanvas.height / rect.height);
+
+            currentStroke = {
+                color: currentColor,
+                brushSize: brushSize,
+                isEraser: (activeTool === 'eraser'),
+                path: [{ x: lastX, y: lastY }]
+            };
+            // Clear redoStack on new drawing action
+            redoStack = [];
         }
 
         function draw(e) {
@@ -641,12 +1148,25 @@
             const currentX = (e.clientX - rect.left) * (drawingCanvas.width / rect.width);
             const currentY = (e.clientY - rect.top) * (drawingCanvas.height / rect.height);
 
+            currentStroke.path.push({ x: currentX, y: currentY });
+
+            // Temporarily set drawing styles for real-time preview
             drawingCtx.beginPath();
             drawingCtx.moveTo(lastX, lastY);
             drawingCtx.lineTo(currentX, currentY);
-            drawingCtx.strokeStyle = currentColor;
+
             drawingCtx.lineWidth = brushSize;
             drawingCtx.lineCap = 'round';
+            drawingCtx.lineJoin = 'round';
+
+            if (activeTool === 'eraser') {
+                drawingCtx.globalCompositeOperation = 'destination-out';
+                drawingCtx.strokeStyle = 'rgba(0,0,0,1)'; // The color doesn't matter, only its opacity for destination-out
+            } else { // 'color' tool
+                drawingCtx.globalCompositeOperation = 'source-over';
+                drawingCtx.strokeStyle = currentColor;
+            }
+
             drawingCtx.stroke();
 
             lastX = currentX;
@@ -654,40 +1174,81 @@
         }
 
         function stopDrawing() {
+            if (!isDrawing) return;
             isDrawing = false;
+            if (currentStroke && currentStroke.path.length > 1) { // Only add if path has actual drawing
+                drawingHistory.push(currentStroke);
+            }
+            currentStroke = null;
+            // Redraw everything to ensure proper compositing after a stroke,
+            // especially important when switching between drawing and erasing.
+            redrawCanvas();
         }
 
         function selectColor(e) {
-            document.querySelector('.color-picker.active-color')?.classList.remove('active-color');
-            currentColor = e.target.dataset.color;
-            e.target.classList.add('active-color');
+            e.stopPropagation(); // Prevent closing by global listener
+            // This function is called for color pickers inside the colorSizeSelectionPanel
+            setActiveTool('color', e.target.dataset.color);
+            // Optionally close the panel after selecting a color
+            // closeColorSizePanel(); // Keeping this commented, per conversation history, to allow continuous changes.
         }
 
-        function increaseBrushSize() {
-            brushSize = Math.min(brushSize + 2, 30); // Max size 30
-            document.getElementById('brushSizeDisplay').textContent = brushSize;
-        }
-
-        function decreaseBrushSize() {
-            brushSize = Math.max(brushSize - 2, 1); // Min size 1
-            document.getElementById('brushSizeDisplay').textContent = brushSize;
+        function activateEraser(e) {
+            e.stopPropagation(); // Prevent closing by global listener
+            setActiveTool('eraser');
         }
 
         function clearDrawing() {
-            // Re-capture current state of the 3D scene to clear drawings
-            renderer.render(scene, camera);
-            const screenshot = renderer.domElement.toDataURL('image/png');
-            const img = new Image();
-            img.onload = () => {
-                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                drawingCtx.drawImage(img, 0, 0, drawingCanvas.width, drawingCanvas.height);
-            };
-            img.src = screenshot;
+            // Store the current drawingHistory as a 'clear' action
+            if (drawingHistory.length > 0) {
+                redoStack.push({ type: 'clear', history: [...drawingHistory] });
+                drawingHistory = [];
+                redrawCanvas();
+            }
+        }
+
+        function undoAnnotation() {
+            if (drawingHistory.length > 0) {
+                const undoneStroke = drawingHistory.pop();
+                redoStack.push(undoneStroke);
+                redrawCanvas();
+            } else if (redoStack.length > 0 && redoStack[redoStack.length - 1].type === 'clear') {
+                // If the last action in redoStack was a 'clear', undo it
+                const clearAction = redoStack.pop();
+                drawingHistory = clearAction.history;
+                redrawCanvas();
+            }
+        }
+
+        function redoAnnotation() {
+            if (redoStack.length > 0) {
+                const redoneAction = redoStack.pop();
+                if (redoneAction.type === 'clear') {
+                    // If redoing a 'clear', clear the current history and store it for undoing a redo of clear
+                    drawingHistory = [];
+                    // Note: If you want to be able to undo a re-cleared canvas, you'd need to push a new 'clear' action here.
+                    // For simplicity, redoing a clear just empties the canvas again without a new undoable clear.
+                } else {
+                    drawingHistory.push(redoneAction);
+                }
+                redrawCanvas();
+            }
         }
 
 
         function saveAnnotation() {
-            const dataURL = drawingCanvas.toDataURL('image/png');
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d', { alpha: true }); // Ensure alpha for the combined image
+
+            tempCanvas.width = screenshotCanvas.width;
+            tempCanvas.height = screenshotCanvas.height;
+
+            // Draw the screenshot first
+            tempCtx.drawImage(screenshotCanvas, 0, 0);
+            // Then draw the annotations on top (which might have transparent areas due to eraser)
+            tempCtx.drawImage(drawingCanvas, 0, 0);
+
+            const dataURL = tempCanvas.toDataURL('image/png');
             const a = document.createElement('a');
             a.href = dataURL;
             a.download = 'annotated_cubes.png';
@@ -699,8 +1260,12 @@
         function closeAnnotation() {
             const annotationOverlay = document.getElementById('annotationOverlay');
             annotationOverlay.classList.add('hidden');
-            annotationOverlay.style.display = 'none'; // Ensure it's completely hidden
-            controls.enabled = true; // Re-enable OrbitControls
+            annotationOverlay.style.display = 'none';
+            controls.enabled = true;
+            // Clear history when closing annotation to start fresh next time
+            drawingHistory = [];
+            redoStack = [];
+            closeColorSizePanel(); // Ensure the pop-up panel is also closed
         }
 
         function captureAndAnnotate() {
@@ -710,7 +1275,6 @@
         // Animation loop
         function animate() {
             requestAnimationFrame(animate);
-            // Only update controls if not in annotation mode
             if (controls.enabled) {
                 controls.update();
             }
@@ -721,7 +1285,7 @@
         window.onload = function() {
             init();
             animate();
-            addCube(0, 0, 0); // Initial cube
+            addCube(0, 0, 0);
         };
     </script>
 </body>

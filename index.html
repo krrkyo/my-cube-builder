@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Cube Builder</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Inter', sans-serif; display: flex; flex-direction: column; height: 100vh; background-color: #f0f0f0; }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            z-index: 10;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.3s ease-in-out;
+        }
+        /* Updated hidden class to use display: none; */
+        #info.hidden {
+            opacity: 0;
+            pointer-events: none;
+            display: none; /* Hide element completely */
+        }
+        #controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            z-index: 10;
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            border: none;
+            border-radius: 10px;
+            background-color: #4CAF50;
+            color: white;
+            box-shadow: 0 5px #388E3C;
+            transition: all 0.2s ease;
+        }
+        button:hover {
+            background-color: #45a049;
+            box-shadow: 0 3px #388E3C;
+            transform: translateY(2px);
+        }
+        button:active {
+            box-shadow: 0 0 #388E3C;
+            transform: translateY(5px);
+        }
+        button.remove {
+            background-color: #f44336;
+            box-shadow: 0 5px #d32f2f;
+        }
+        button.remove:hover {
+            background-color: #da332a;
+            box-shadow: 0 3px #d32f2f;
+        }
+        button.remove:active {
+            box-shadow: 0 0 #d32f2f;
+        }
+        button.toggle-info, button.annotate-btn {
+            background-color: #607d8b;
+            box-shadow: 0 5px #455a64;
+        }
+        button.toggle-info:hover, button.annotate-btn:hover {
+            background-color: #546e7a;
+            box-shadow: 0 3px #455a64;
+        }
+        button.toggle-info:active, button.annotate-btn:active {
+            box-shadow: 0 0 #455a64;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            flex-grow: 1;
+        }
+
+        /* Annotation Overlay Styles */
+        #annotationOverlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex; /* Kept flex, but managed by JS for hidden state */
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+        }
+        /* Updated hidden class for annotation overlay */
+        #annotationOverlay.hidden {
+            display: none; /* Hide element completely */
+        }
+        #drawingCanvas {
+            border: 2px solid white;
+            cursor: crosshair;
+            background-color: #333;
+            max-width: 90vw; /* These max-width/height are crucial for responsiveness */
+            max-height: 80vh;
+            width: auto; /* Allow CSS to size it based on max-width/height */
+            height: auto;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            border-radius: 10px;
+        }
+        #annotationTools {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding: 15px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        #annotationTools button {
+            padding: 10px 20px;
+            font-size: 1em;
+            background-color: #3f51b5;
+            box-shadow: 0 3px #303f9f;
+        }
+        #annotationTools button:hover {
+            background-color: #303f9f;
+            box-shadow: 0 1px #303f9f;
+            transform: translateY(2px);
+        }
+        #annotationTools button:active {
+            box-shadow: 0 0 #303f9f;
+            transform: translateY(5px);
+        }
+        .color-picker {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .color-picker:hover {
+            transform: scale(1.1);
+        }
+        .color-picker.active-color {
+            border-color: yellow;
+            transform: scale(1.2);
+        }
+        #brushSizeDisplay {
+            color: white;
+            font-size: 1.1em;
+            align-self: center;
+            padding: 0 10px;
+            min-width: 50px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        Click 'Add Mode' to add cubes. Click 'Remove Mode' to remove cubes. <br>
+        In 'Add Mode', click on a face of a cube or the grid to add a new cube. <br>
+        In 'Remove Mode', click on a cube to remove it. <br>
+        Use **right-click** (or **one-finger drag on touch**) to orbit, scroll (or **two-finger pinch on touch**) to zoom.
+    </div>
+    <div id="controls">
+        <button id="addModeBtn" class="active">Add Mode</button>
+        <button id="removeModeBtn" class="remove">Remove Mode</button>
+        <button id="annotateBtn" class="annotate-btn">Annotate</button>
+        <button id="toggleInfoBtn" class="toggle-info">Hide Instructions</button>
+    </div>
+
+    <!-- Annotation Overlay -->
+    <div id="annotationOverlay" class="hidden">
+        <canvas id="drawingCanvas"></canvas>
+        <div id="annotationTools">
+            <!-- Color Pickers -->
+            <div class="color-picker" style="background-color: red;" data-color="red"></div>
+            <div class="color-picker" style="background-color: green;" data-color="green"></div>
+            <div class="color-picker" style="background-color: blue;" data-color="blue"></div>
+            <div class="color-picker active-color" style="background-color: black;" data-color="black"></div>
+
+            <!-- Brush Size Controls -->
+            <button id="brushSmallerBtn">- Size</button>
+            <span id="brushSizeDisplay">5</span>
+            <button id="brushLargerBtn">+ Size</button>
+
+            <!-- Action Buttons -->
+            <button id="clearAnnotationBtn">Clear</button>
+            <button id="saveAnnotationBtn">Save Annotation</button>
+            <button id="closeAnnotationBtn">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let scene, camera, renderer, controls;
+        let cubes = new Map();
+        let raycaster = new THREE.Raycaster();
+        let mouse = new THREE.Vector2();
+        let currentMode = 'add';
+        let edgeLinesGroup;
+
+        const GRID_SIZE = 10;
+        const CUBE_SIZE = 1;
+        const HALF_CUBE_SIZE = CUBE_SIZE / 2;
+
+        const baseMaterial = new THREE.MeshLambertMaterial({ color: 0x0077ff, opacity: 1, transparent: false });
+        const highlightMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true });
+        const ghostMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true, transparent: true, opacity: 0.5 });
+        const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x000000 });
+
+        let intersectedObject = null;
+        let ghostCube = null;
+        let lastClickPosition = new THREE.Vector3(Infinity, Infinity, Infinity);
+
+        // Annotation variables
+        let drawingCanvas, drawingCtx;
+        let isDrawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentColor = 'black';
+        let brushSize = 5;
+
+        function init() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xddeeff);
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(5, 5, 5);
+            camera.lookAt(0, 0, 0);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.minDistance = 5;
+            controls.maxDistance = 100;
+            controls.maxPolarAngle = Math.PI / 2;
+
+            controls.mouseButtons = {
+                LEFT: THREE.MOUSE.NONE,
+                MIDDLE: THREE.MOUSE.DOLLY,
+                RIGHT: THREE.MOUSE.ROTATE
+            };
+            controls.enablePan = false;
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            directionalLight.position.set(5, 10, 7.5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 1024;
+            directionalLight.shadow.mapSize.height = 1024;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -GRID_SIZE;
+            directionalLight.shadow.camera.right = GRID_SIZE;
+            directionalLight.shadow.camera.top = GRID_SIZE;
+            directionalLight.shadow.camera.bottom = -GRID_SIZE;
+            scene.add(directionalLight);
+
+            const planeGeometry = new THREE.PlaneGeometry(GRID_SIZE * 2, GRID_SIZE * 2);
+            const planeMaterial = new THREE.MeshBasicMaterial({ color: 0xcccccc, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+            const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+            plane.rotation.x = Math.PI / 2;
+            plane.position.y = -HALF_CUBE_SIZE;
+            plane.receiveShadow = true;
+            plane.name = 'groundPlane';
+            scene.add(plane);
+
+            ghostCube = new THREE.Mesh(new THREE.BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE), ghostMaterial);
+            ghostCube.visible = false;
+            ghostCube.name = 'ghostCube';
+            scene.add(ghostCube);
+
+            edgeLinesGroup = new THREE.Group();
+            edgeLinesGroup.name = 'edgeLinesGroup';
+            scene.add(edgeLinesGroup);
+
+            window.addEventListener('resize', onWindowResize, false);
+            renderer.domElement.addEventListener('mousemove', onMouseMove, false);
+            renderer.domElement.addEventListener('click', onCanvasClick, false);
+
+            document.getElementById('addModeBtn').addEventListener('click', () => setMode('add'));
+            document.getElementById('removeModeBtn').addEventListener('click', () => setMode('remove'));
+            document.getElementById('toggleInfoBtn').addEventListener('click', toggleInstructions);
+            document.getElementById('annotateBtn').addEventListener('click', captureAndAnnotate);
+
+            // Hide instructions by default on app start
+            document.getElementById('info').classList.add('hidden');
+            document.getElementById('toggleInfoBtn').textContent = 'Show Instructions';
+
+            setMode(currentMode);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function toggleInstructions() {
+            const infoDiv = document.getElementById('info');
+            if (infoDiv.classList.contains('hidden')) {
+                infoDiv.classList.remove('hidden');
+                document.getElementById('toggleInfoBtn').textContent = 'Hide Instructions';
+            } else {
+                infoDiv.classList.add('hidden');
+                document.getElementById('toggleInfoBtn').textContent = 'Show Instructions';
+            }
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('addModeBtn').classList.remove('active');
+            document.getElementById('removeModeBtn').classList.remove('active');
+            document.getElementById(`${mode}ModeBtn`).classList.add('active');
+
+            if (intersectedObject && intersectedObject.name === 'unitCube') {
+                intersectedObject.material = baseMaterial.clone();
+            }
+            intersectedObject = null;
+
+            if (ghostCube) {
+                ghostCube.visible = (currentMode === 'add');
+            }
+            lastClickPosition.set(Infinity, Infinity, Infinity);
+        }
+
+        function addCube(x, y, z) {
+            x = Math.round(x);
+            y = Math.round(y);
+            z = Math.round(z);
+
+            const key = `${x},${y},${z}`;
+            if (cubes.has(key)) {
+                return;
+            }
+
+            const geometry = new THREE.BoxGeometry(CUBE_SIZE, CUBE_SIZE, CUBE_SIZE);
+            const cubeMesh = new THREE.Mesh(geometry, baseMaterial.clone());
+            cubeMesh.position.set(x, y, z);
+            cubeMesh.castShadow = true;
+            cubeMesh.receiveShadow = true;
+            cubeMesh.name = 'unitCube';
+
+            const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), edgeMaterial);
+            edges.position.copy(cubeMesh.position);
+            edges.name = `edges_${key}`;
+            edgeLinesGroup.add(edges);
+
+            scene.add(cubeMesh);
+            cubes.set(key, { mesh: cubeMesh, edges: edges });
+        }
+
+        function removeCube(x, y, z) {
+            const key = `${x},${y},${z}`;
+            if (cubes.has(key)) {
+                const cubeData = cubes.get(key);
+                const cubeMeshToRemove = cubeData.mesh;
+                const edgeLinesToRemove = cubeData.edges;
+
+                scene.remove(cubeMeshToRemove);
+                edgeLinesGroup.remove(edgeLinesToRemove);
+
+                cubes.delete(key);
+
+                cubeMeshToRemove.geometry.dispose();
+                if (cubeMeshToRemove.material.dispose) {
+                    cubeMeshToRemove.material.dispose();
+                }
+                edgeLinesToRemove.geometry.dispose();
+                if (edgeLinesToRemove.material.dispose) {
+                    edgeLinesToRemove.material.dispose();
+                }
+
+                if (intersectedObject === cubeMeshToRemove) {
+                    intersectedObject = null;
+                }
+            }
+        }
+
+        function onMouseMove(event) {
+            event.preventDefault();
+
+            // If annotation overlay is visible, prevent 3D scene interactions
+            if (!document.getElementById('annotationOverlay').classList.contains('hidden')) {
+                return;
+            }
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const objectsToIntersect = Array.from(cubes.values()).map(data => data.mesh);
+            const groundPlane = scene.getObjectByName('groundPlane');
+            if (groundPlane) {
+                objectsToIntersect.push(groundPlane);
+            }
+
+            const intersects = raycaster.intersectObjects(objectsToIntersect, true);
+
+            if (currentMode === 'remove') {
+                if (intersects.length > 0 && intersects[0].object.name === 'unitCube') {
+                    const intersect = intersects[0];
+                    if (intersect.object !== intersectedObject) {
+                        if (intersectedObject && intersectedObject.name === 'unitCube') {
+                            intersectedObject.material = baseMaterial.clone();
+                        }
+                        intersectedObject = intersect.object;
+                        intersectedObject.material = highlightMaterial;
+                    }
+                } else {
+                    if (intersectedObject && intersectedObject.name === 'unitCube') {
+                        intersectedObject.material = baseMaterial.clone();
+                    }
+                    intersectedObject = null;
+                }
+            } else {
+                 if (intersectedObject && intersectedObject.name === 'unitCube') {
+                    intersectedObject.material = baseMaterial.clone();
+                }
+                intersectedObject = null;
+            }
+
+            if (currentMode === 'add') {
+                if (intersects.length > 0) {
+                    const intersect = intersects[0];
+
+                    if (intersect.face && (intersect.object.name === 'unitCube' || intersect.object.name === 'groundPlane')) {
+                        let ghostX, ghostY, ghostZ;
+
+                        if (intersect.object.name === 'unitCube') {
+                            ghostX = intersect.object.position.x + intersect.face.normal.x * CUBE_SIZE;
+                            ghostY = intersect.object.position.y + intersect.face.normal.y * CUBE_SIZE;
+                            ghostZ = intersect.object.position.z + intersect.face.normal.z * CUBE_SIZE;
+                        } else if (intersect.object.name === 'groundPlane') {
+                            ghostX = Math.round(intersect.point.x / CUBE_SIZE) * CUBE_SIZE;
+                            ghostY = 0;
+                            ghostZ = Math.round(intersect.point.z / CUBE_SIZE) * CUBE_SIZE;
+                        }
+
+                        ghostX = Math.round(ghostX);
+                        ghostY = Math.round(ghostY);
+                        ghostZ = Math.round(ghostZ);
+
+                        if (!cubes.has(`${ghostX},${ghostY},${ghostZ}`)) {
+                            ghostCube.position.set(ghostX, ghostY, ghostZ);
+                            ghostCube.visible = true;
+                        } else {
+                            ghostCube.visible = false;
+                        }
+                    } else {
+                        ghostCube.visible = false;
+                    }
+                } else {
+                    ghostCube.visible = false;
+                }
+            } else {
+                ghostCube.visible = false;
+            }
+        }
+
+        function onCanvasClick(event) {
+            event.preventDefault();
+
+            // If annotation overlay is visible, prevent 3D scene interactions
+            if (!document.getElementById('annotationOverlay').classList.contains('hidden')) {
+                return;
+            }
+
+            if (event.button !== 0) {
+                return;
+            }
+
+            // Important: Check if OrbitControls is currently active (meaning a drag/orbit happened).
+            if (controls.enabled && controls.state !== THREE.MOUSE.NONE) {
+                controls.reset();
+                return;
+            }
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const objectsToIntersect = Array.from(cubes.values()).map(data => data.mesh);
+            const groundPlane = scene.getObjectByName('groundPlane');
+            if (groundPlane) {
+                objectsToIntersect.push(groundPlane);
+            }
+
+            const intersects = raycaster.intersectObjects(objectsToIntersect, true);
+
+            if (intersects.length > 0) {
+                const intersect = intersects[0];
+                const clickedObject = intersect.object;
+
+                if (intersect.face && (clickedObject.name === 'unitCube' || clickedObject.name === 'groundPlane')) {
+                    if (currentMode === 'add') {
+                        let newCubeX, newCubeY, newCubeZ;
+
+                        if (clickedObject.name === 'unitCube') {
+                            newCubeX = clickedObject.position.x + intersect.face.normal.x * CUBE_SIZE;
+                            newCubeY = clickedObject.position.y + intersect.face.normal.y * CUBE_SIZE;
+                            newCubeZ = clickedObject.position.z + intersect.face.normal.z * CUBE_SIZE;
+                        } else if (clickedObject.name === 'groundPlane') {
+                            newCubeX = Math.round(intersect.point.x / CUBE_SIZE) * CUBE_SIZE;
+                            newCubeY = 0;
+                            newCubeZ = Math.round(intersect.point.z / CUBE_SIZE) * CUBE_SIZE;
+                        }
+
+                        newCubeX = Math.round(newCubeX);
+                        newCubeY = Math.round(newCubeY);
+                        newCubeZ = Math.round(newCubeZ);
+
+
+                        const currentSnappedPosition = new THREE.Vector3(newCubeX, newCubeY, newCubeZ);
+
+                        if (lastClickPosition.equals(currentSnappedPosition)) {
+                            return;
+                        }
+
+                        addCube(newCubeX, newCubeY, newCubeZ);
+                        lastClickPosition.copy(currentSnappedPosition);
+
+                    } else if (currentMode === 'remove') {
+                        if (clickedObject.name === 'unitCube') {
+                            removeCube(clickedObject.position.x, clickedObject.position.y, clickedObject.position.z);
+                            lastClickPosition.set(Infinity, Infinity, Infinity);
+                        }
+                    }
+                }
+            } else {
+                lastClickPosition.set(Infinity, Infinity, Infinity);
+            }
+        }
+
+        // Annotation Functions
+        function setupAnnotationCanvas() {
+            drawingCanvas = document.getElementById('drawingCanvas');
+            drawingCtx = drawingCanvas.getContext('2d');
+            const annotationOverlay = document.getElementById('annotationOverlay');
+
+            // IMPORTANT: Render the scene just before capturing the screenshot
+            renderer.render(scene, camera);
+            const screenshot = renderer.domElement.toDataURL('image/png');
+            const img = new Image();
+            img.onload = () => {
+                // Set canvas internal resolution to match the screenshot resolution
+                drawingCanvas.width = img.width;
+                drawingCanvas.height = img.height;
+
+                // Draw the screenshot onto the canvas
+                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                drawingCtx.drawImage(img, 0, 0, drawingCanvas.width, drawingCanvas.height);
+            };
+            img.src = screenshot;
+
+            // Show the annotation overlay by setting its display style
+            annotationOverlay.style.display = 'flex';
+            annotationOverlay.classList.remove('hidden');
+            // Disable OrbitControls while annotating
+            controls.enabled = false;
+
+            // Set up drawing event listeners for the 2D canvas
+            drawingCanvas.addEventListener('mousedown', startDrawing);
+            drawingCanvas.addEventListener('mousemove', draw);
+            drawingCanvas.addEventListener('mouseup', stopDrawing);
+            drawingCanvas.addEventListener('mouseout', stopDrawing);
+
+            // Touch events for drawing
+            drawingCanvas.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                startDrawing({ clientX: touch.clientX, clientY: touch.clientY });
+            });
+            drawingCanvas.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                draw({ clientX: touch.clientX, clientY: touch.clientY });
+            });
+            drawingCanvas.addEventListener('touchend', stopDrawing);
+            drawingCanvas.addEventListener('touchcancel', stopDrawing);
+
+
+            // Setup annotation tool buttons
+            document.querySelectorAll('.color-picker').forEach(picker => {
+                picker.removeEventListener('click', selectColor);
+                picker.addEventListener('click', selectColor);
+            });
+            document.getElementById('brushSmallerBtn').removeEventListener('click', decreaseBrushSize);
+            document.getElementById('brushSmallerBtn').addEventListener('click', decreaseBrushSize);
+            document.getElementById('brushLargerBtn').removeEventListener('click', increaseBrushSize);
+            document.getElementById('brushLargerBtn').addEventListener('click', increaseBrushSize);
+            document.getElementById('clearAnnotationBtn').removeEventListener('click', clearDrawing);
+            document.getElementById('clearAnnotationBtn').addEventListener('click', clearDrawing);
+            document.getElementById('saveAnnotationBtn').removeEventListener('click', saveAnnotation);
+            document.getElementById('saveAnnotationBtn').addEventListener('click', saveAnnotation);
+            document.getElementById('closeAnnotationBtn').removeEventListener('click', closeAnnotation);
+            document.getElementById('closeAnnotationBtn').addEventListener('click', closeAnnotation);
+
+            // Set initial brush size display
+            document.getElementById('brushSizeDisplay').textContent = brushSize;
+            // Set initial active color picker
+            document.querySelector(`.color-picker[data-color="${currentColor}"]`).classList.add('active-color');
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = drawingCanvas.getBoundingClientRect();
+            // Scale mouse coordinates to canvas internal resolution
+            lastX = (e.clientX - rect.left) * (drawingCanvas.width / rect.width);
+            lastY = (e.clientY - rect.top) * (drawingCanvas.height / rect.height);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const rect = drawingCanvas.getBoundingClientRect();
+            // Scale mouse coordinates to canvas internal resolution
+            const currentX = (e.clientX - rect.left) * (drawingCanvas.width / rect.width);
+            const currentY = (e.clientY - rect.top) * (drawingCanvas.height / rect.height);
+
+            drawingCtx.beginPath();
+            drawingCtx.moveTo(lastX, lastY);
+            drawingCtx.lineTo(currentX, currentY);
+            drawingCtx.strokeStyle = currentColor;
+            drawingCtx.lineWidth = brushSize;
+            drawingCtx.lineCap = 'round';
+            drawingCtx.stroke();
+
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function selectColor(e) {
+            document.querySelector('.color-picker.active-color')?.classList.remove('active-color');
+            currentColor = e.target.dataset.color;
+            e.target.classList.add('active-color');
+        }
+
+        function increaseBrushSize() {
+            brushSize = Math.min(brushSize + 2, 30); // Max size 30
+            document.getElementById('brushSizeDisplay').textContent = brushSize;
+        }
+
+        function decreaseBrushSize() {
+            brushSize = Math.max(brushSize - 2, 1); // Min size 1
+            document.getElementById('brushSizeDisplay').textContent = brushSize;
+        }
+
+        function clearDrawing() {
+            // Re-capture current state of the 3D scene to clear drawings
+            renderer.render(scene, camera);
+            const screenshot = renderer.domElement.toDataURL('image/png');
+            const img = new Image();
+            img.onload = () => {
+                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                drawingCtx.drawImage(img, 0, 0, drawingCanvas.width, drawingCanvas.height);
+            };
+            img.src = screenshot;
+        }
+
+
+        function saveAnnotation() {
+            const dataURL = drawingCanvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataURL;
+            a.download = 'annotated_cubes.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        function closeAnnotation() {
+            const annotationOverlay = document.getElementById('annotationOverlay');
+            annotationOverlay.classList.add('hidden');
+            annotationOverlay.style.display = 'none'; // Ensure it's completely hidden
+            controls.enabled = true; // Re-enable OrbitControls
+        }
+
+        function captureAndAnnotate() {
+            setupAnnotationCanvas();
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            // Only update controls if not in annotation mode
+            if (controls.enabled) {
+                controls.update();
+            }
+            renderer.render(scene, camera);
+        }
+
+        // Initialize and start animation when window loads
+        window.onload = function() {
+            init();
+            animate();
+            addCube(0, 0, 0); // Initial cube
+        };
+    </script>
+</body>
+</html>

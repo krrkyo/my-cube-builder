@@ -264,7 +264,6 @@
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Original shadow */
         }
         #mainColorPickerCircle:hover {
-            /* Removed transform: scale(1.15); */
             transform: none; /* Explicitly ensure no transform on hover */
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); /* Original hover shadow */
         }
@@ -553,6 +552,11 @@
         let redoStack = [];
         let currentStroke = null;
 
+        // Touch interaction variables for 3D scene
+        let touchStartX = 0;
+        let touchStartY = 0;
+        const TAP_THRESHOLD = 10; // Pixels
+
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0xddeeff);
@@ -572,7 +576,7 @@
             controls.minDistance = 5;
             controls.maxDistance = 100;
             controls.maxPolarAngle = Math.PI / 2;
-            controls.zoomSpeed = 0.2; // Added to reduce zoom sensitivity
+            controls.zoomSpeed = 0.2; // Reduced zoom sensitivity
 
             controls.mouseButtons = {
                 LEFT: THREE.MOUSE.NONE,
@@ -618,6 +622,8 @@
             window.addEventListener('resize', onWindowResize, false);
             renderer.domElement.addEventListener('mousemove', onMouseMove, false);
             renderer.domElement.addEventListener('click', onCanvasClick, false);
+            renderer.domElement.addEventListener('touchstart', onCanvasTouchStart, false); // Added touchstart listener
+            renderer.domElement.addEventListener('touchend', onCanvasTouchEnd, false);     // Added touchend listener
 
             document.getElementById('addModeBtn').addEventListener('click', () => setMode('add'));
             document.getElementById('removeModeBtn').addEventListener('click', () => setMode('remove'));
@@ -800,28 +806,9 @@
             }
         }
 
-        function onCanvasClick(event) {
-            event.preventDefault();
-
-            // If annotation overlay is visible, prevent 3D scene interactions
-            if (!document.getElementById('annotationOverlay').classList.contains('hidden')) {
-                return;
-            }
-
-            if (event.button !== 0) {
-                return;
-            }
-
-            // Important: Check if OrbitControls is currently active (meaning a drag/orbit happened).
-            if (controls.enabled && controls.state !== THREE.MOUSE.NONE) {
-                controls.reset();
-                return;
-            }
-
-            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
+        // Shared function to handle cube interaction logic for both mouse and touch
+        function handleCubeInteraction(currentMouse) {
+            raycaster.setFromCamera(currentMouse, camera);
 
             const objectsToIntersect = Array.from(cubes.values()).map(data => data.mesh);
             const groundPlane = scene.getObjectByName('groundPlane');
@@ -853,7 +840,6 @@
                         newCubeY = Math.round(newCubeY);
                         newCubeZ = Math.round(newCubeZ);
 
-
                         const currentSnappedPosition = new THREE.Vector3(newCubeX, newCubeY, newCubeZ);
 
                         if (lastClickPosition.equals(currentSnappedPosition)) {
@@ -874,6 +860,70 @@
                 lastClickPosition.set(Infinity, Infinity, Infinity);
             }
         }
+
+        function onCanvasClick(event) {
+            event.preventDefault();
+
+            // If annotation overlay is visible, prevent 3D scene interactions
+            if (!document.getElementById('annotationOverlay').classList.contains('hidden')) {
+                return;
+            }
+
+            if (event.button !== 0) { // Only left click for mouse
+                return;
+            }
+
+            // Important: Check if OrbitControls is currently active (meaning a mouse drag/orbit happened).
+            // This prevents adding a cube if the user just finished dragging the camera with the left mouse button.
+            if (controls.enabled && controls.state !== THREE.MOUSE.NONE) {
+                // No controls.reset() here, as it might interfere with subsequent actions.
+                // The check itself is enough to prevent interaction during a drag.
+                return;
+            }
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            handleCubeInteraction(mouse);
+        }
+
+        // New function for touch start
+        function onCanvasTouchStart(event) {
+            if (!document.getElementById('annotationOverlay').classList.contains('hidden')) {
+                return; // Don't interfere if annotation mode is active
+            }
+            if (event.touches.length === 1) { // Only track single finger tap for interaction
+                touchStartX = event.touches[0].clientX;
+                touchStartY = event.touches[0].clientY;
+            }
+        }
+
+        // New function for touch end
+        function onCanvasTouchEnd(event) {
+            event.preventDefault(); // Prevent default browser actions like scrolling
+
+            if (!document.getElementById('annotationOverlay').classList.contains('hidden')) {
+                return; // Don't interfere if annotation mode is active
+            }
+
+            if (event.changedTouches.length === 1) { // Only consider single finger lift
+                const touch = event.changedTouches[0];
+                const touchEndX = touch.clientX;
+                const touchEndY = touch.clientY;
+
+                const distance = Math.sqrt(
+                    Math.pow(touchEndX - touchStartX, 2) +
+                    Math.pow(touchEndY - touchStartY, 2)
+                );
+
+                if (distance < TAP_THRESHOLD) { // If it's a tap (minimal movement)
+                    mouse.x = (touchEndX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(touchEndY / window.innerHeight) * 2 + 1;
+                    handleCubeInteraction(mouse);
+                }
+            }
+        }
+
 
         // Annotation Functions
         function setupAnnotationCanvas() {
